@@ -155,7 +155,15 @@ class Main:
         print("1. Choose difficulty")
         print("2. Generate new board")
         print("3. Show current board")
+        print("4. Run algorithm")
         print("Press -1 to exit the program")
+        return "Choice: "
+
+    @staticmethod
+    def printAlgorithmChoices():
+        print("Choose an algorithm:")
+        print("1. CSP (Constraint Satisfaction Problem)")
+        print("2. SA (Simulated Annealing)")
         return "Choice: "
 
 
@@ -180,5 +188,22 @@ if __name__ == '__main__':
 
         elif choice == "3":
             Main.printBoard()
+
+        elif choice == "4":
+            if Main.board is None:
+                print("Please generate a board first (option 2)")
+            else:
+                algoChoice = input(Main.printAlgorithmChoices())
+                if algoChoice == "1":
+                    print("Running CSP algorithm...")
+
+                    # TODO: Call CSP class here
+                    # CSP.solve(Main.board)
+                elif algoChoice == "2":
+                    print("Running SA algorithm...")
+                    # TODO: Call SA class here
+                    # SA.solve(Main.board)
+                else:
+                    print("Invalid choice")
 
         print()
