@@ -1,9 +1,19 @@
 import random
+import time
+from SA import SA
+from CSP import CSP
 
 
 class Main:
     gameDifficulty = "easy"
     board = None
+    original_board = None  # Store the original board for statistics
+    statistics = {
+        'csp_mrv': None,
+        'csp_mcv': None,
+        'csp_lcv': None,
+        'sa': None
+    }
 
     @classmethod
     def generateBoard(cls, gameDifficulty):
@@ -20,7 +30,17 @@ class Main:
             cells_to_remove = 55  # ~26 clues remain
 
         cls._removeNumbers(board, cells_to_remove)
-        cls.board = board
+        cls.board = [row[:] for row in board]  # Create a copy
+        cls.original_board = [row[:] for row in board]  # Store original
+
+        # Reset statistics when new board is generated
+        cls.statistics = {
+            'csp_mrv': None,
+            'csp_mcv': None,
+            'csp_lcv': None,
+            'sa': None
+        }
+
         return board
 
     @classmethod
@@ -151,17 +171,186 @@ class Main:
 
     @staticmethod
     def printMenu():
-        print("Choose an option:")
-        print("1. Choose difficulty")
-        print("2. Generate new board")
-        print("3. Show current board")
-        print("Press -1 to exit the program")
+        print("=" * 50)
+        print("SUDOKU SOLVER - MAIN MENU")
+        print("=" * 50)
+        print("1. Generate new board")
+        print("2. Show current board")
+        print("3. Run CSP algorithm")
+        print("4. Run SA algorithm")
+        print("5. Show statistics")
+        print("-1. Exit program")
+        print("=" * 50)
         return "Choice: "
+
+    @staticmethod
+    def printCSPMenu():
+        print("\n" + "=" * 50)
+        print("CSP ALGORITHM MENU")
+        print("=" * 50)
+        print("1. Run CSP with MRV heuristic")
+        print("2. Run CSP with MCV heuristic")
+        print("3. Run CSP with LCV heuristic")
+        print("4. Show CSP statistics")
+        print("5. Back to main menu")
+        print("=" * 50)
+        return "Choice: "
+
+    @classmethod
+    def runCSPWithHeuristic(cls, heuristic_name):
+        """Run CSP algorithm with specified heuristic"""
+        if cls.board is None:
+            print("Please generate a board first!")
+            return None
+
+        print(f"\nRunning CSP with {heuristic_name} heuristic...")
+        print("Starting board:")
+        cls.printBoard(cls.board)
+
+        # Create a copy of the board for solving
+        board_copy = [row[:] for row in cls.board]
+
+        # Create CSP solver
+        solver = CSP(board_copy)
+
+        # Solve with timing
+        start_time = time.time()
+        solution, stats = solver.solve(heuristic=heuristic_name, visual=False)
+        end_time = time.time()
+
+        # Store statistics
+        key = f'csp_{heuristic_name.lower()}'
+        cls.statistics[key] = {
+            'heuristic': heuristic_name,
+            'success': stats['success'],
+            'time': stats['time'],
+            'nodes_explored': stats['nodes_explored'],
+            'backtracks': stats['backtracks']
+        }
+
+        if solution:
+            print("\n✓ Solution found!")
+            cls.printBoard(solution)
+        else:
+            print("\n✗ No solution found!")
+
+        print(f"\nTime taken: {stats['time']:.4f} seconds")
+        print(f"Nodes explored: {stats['nodes_explored']}")
+        print(f"Backtracks: {stats['backtracks']}")
+
+        return solution
+
+    @classmethod
+    def handleCSPMenu(cls):
+        """Handle CSP submenu"""
+        csp_choice = ""
+
+        while csp_choice != "5":
+            csp_choice = input(cls.printCSPMenu())
+            print()
+
+            if csp_choice == "1":
+                cls.runCSPWithHeuristic("MRV")
+            elif csp_choice == "2":
+                cls.runCSPWithHeuristic("MCV")
+            elif csp_choice == "3":
+                cls.runCSPWithHeuristic("LCV")
+            elif csp_choice == "4":
+                cls.showCSPStatistics()
+            elif csp_choice == "5":
+                print("Returning to main menu...")
+            else:
+                print("Invalid choice!")
+
+            if csp_choice != "5":
+                input("\nPress Enter to continue...")
+
+    @classmethod
+    def showCSPStatistics(cls):
+        """Show statistics for CSP algorithms only"""
+        print("\n" + "=" * 70)
+        print("CSP STATISTICS")
+        print("=" * 70)
+
+        if cls.original_board is None:
+            print("No board has been generated yet!")
+            return
+
+        print("\nOriginal Board:")
+        cls.printBoard(cls.original_board)
+
+        # Check if any CSP algorithm has been run
+        has_results = any(cls.statistics[key] is not None
+                          for key in ['csp_mrv', 'csp_mcv', 'csp_lcv'])
+
+        if not has_results:
+            print("No CSP algorithms have been run yet!")
+            return
+
+        print("\nResults:")
+        print(f"{'Heuristic':<12} {'Success':<10} {'Time (s)':<12} {'Nodes':<12} {'Backtracks':<12}")
+        print("-" * 70)
+
+        for key in ['csp_mrv', 'csp_mcv', 'csp_lcv']:
+            stats = cls.statistics[key]
+            if stats:
+                success_str = "✓" if stats['success'] else "✗"
+                print(f"{stats['heuristic']:<12} {success_str:<10} "
+                      f"{stats['time']:<12.4f} {stats['nodes_explored']:<12} "
+                      f"{stats['backtracks']:<12}")
+            else:
+                heuristic_name = key.split('_')[1].upper()
+                print(f"{heuristic_name:<12} {'Not run':<10}")
+
+    @classmethod
+    def showAllStatistics(cls):
+        """Show statistics for all algorithms"""
+        print("\n" + "=" * 70)
+        print("ALL ALGORITHMS STATISTICS")
+        print("=" * 70)
+
+        if cls.original_board is None:
+            print("No board has been generated yet!")
+            return
+
+        print("\nOriginal Board:")
+        cls.printBoard(cls.original_board)
+
+        # Check if any algorithm has been run
+        has_results = any(v is not None for v in cls.statistics.values())
+
+        if not has_results:
+            print("No algorithms have been run yet!")
+            return
+
+        print("\nResults:")
+        print(f"{'Algorithm':<15} {'Success':<10} {'Time (s)':<12} {'Nodes':<12} {'Backtracks':<12}")
+        print("-" * 70)
+
+        # CSP results
+        for key in ['csp_mrv', 'csp_mcv', 'csp_lcv']:
+            stats = cls.statistics[key]
+            if stats:
+                success_str = "✓" if stats['success'] else "✗"
+                algo_name = f"CSP ({stats['heuristic']})"
+                print(f"{algo_name:<15} {success_str:<10} "
+                      f"{stats['time']:<12.4f} {stats['nodes_explored']:<12} "
+                      f"{stats['backtracks']:<12}")
+
+        # SA results
+        if cls.statistics['sa']:
+            stats = cls.statistics['sa']
+            success_str = "✓" if stats['success'] else "✗"
+            print(f"{'SA':<15} {success_str:<10} {stats['time']:<12.4f} "
+                  f"{stats.get('iterations', 'N/A'):<12} {'N/A':<12}")
 
 
 if __name__ == '__main__':
-    print("Hello to The Sudoku Solver Project")
+    print("=" * 50)
+    print("WELCOME TO THE SUDOKU SOLVER PROJECT")
+    print("=" * 50)
     print()
+
     choice = ""
 
     while choice != "-1":
@@ -171,14 +360,50 @@ if __name__ == '__main__':
         if choice == "1":
             diffChoice = input(Main.printGameDifficulties())
             Main.setGameDifficulty(diffChoice)
-            print(f"Difficulty set to: {Main.getGameDifficulty()}")
-
-        elif choice == "2":
-            print(f"Generating {Main.getGameDifficulty()} board...")
+            print(f"\nGenerating {Main.getGameDifficulty()} board...")
             Main.generateBoard(Main.getGameDifficulty())
             Main.printBoard()
 
-        elif choice == "3":
+        elif choice == "2":
             Main.printBoard()
 
-        print()
+        elif choice == "3":
+            if Main.board is None:
+                print("Please generate a board first (option 1)")
+            else:
+                Main.handleCSPMenu()
+
+        elif choice == "4":
+            if Main.board is None:
+                print("Please generate a board first (option 1)")
+            else:
+                print("Running SA algorithm...")
+                solver = SA(Main.board)
+                start_time = time.time()
+                solution = solver.solve(visual=True, delay=0.02)
+                end_time = time.time()
+
+                # Store SA statistics
+                Main.statistics['sa'] = {
+                    'success': solution is not None,
+                    'time': end_time - start_time,
+                    'iterations': getattr(solver, 'iterations', 0)
+                }
+
+                print("\nFinal Solution:")
+                Main.printBoard(solution)
+
+        elif choice == "5":
+            Main.showAllStatistics()
+
+        elif choice == "-1":
+            print("Thank you for using the Sudoku Solver!")
+            print("Goodbye!")
+
+        else:
+            print("Invalid choice!")
+
+        if choice != "-1":
+            print()
+
+    print("\nProgram terminated.")
